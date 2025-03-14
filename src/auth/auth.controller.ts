@@ -34,7 +34,7 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     refreshToken(@Req() req: Request) {
         const user = req.user as { sub: string; refreshToken: string }
-        console.log(user)
-        this.authService.refreshToken(user.sub, user.refreshToken)
+
+        return this.authService.refreshToken(user.sub, user.refreshToken)
     }
 }
