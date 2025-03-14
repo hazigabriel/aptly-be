@@ -41,9 +41,38 @@ export class AuthService {
         return tokens
     }
 
-    logout() {}
+    async logout(userId: string) {
+        await this.prisma.user.updateMany({
+            where: {
+                id: userId,
+                hashedRefreshToken: {
+                    not: null,
+                },
+            },
+            data: {
+                hashedRefreshToken: null,
+            },
+        })
+    }
 
-    refreshToken() {}
+    async refreshToken(userId: string, refreshToken: string) {
+        const user = await this.prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+        })
+        if (!user) throw new NotFoundException("User not found")
+        if (!user.hashedRefreshToken) throw new NotFoundException("No refresh token found")
+
+        const refreshTokenMatches = await bcrypt.compare(refreshToken, user.hashedRefreshToken)
+
+        if (!refreshTokenMatches) throw new ForbiddenException("Access denied")
+
+        const tokens = await this.getTokens(user.id, refreshToken)
+        await this.updateRtHash(user.id, tokens.refresh_token)
+
+        return tokens
+    }
 
     hashData(data: string) {
         return bcrypt.hash(data, 10)
