@@ -75,7 +75,7 @@ export class AuthService {
 
         if (!refreshTokenMatches) throw new ForbiddenException("Access denied")
 
-        const tokens = await this.getTokens(user.id, refreshToken)
+        const tokens = await this.getTokens(user.id, user.email)
         await this.updateRtHash(user.id, tokens.refresh_token)
 
         return tokens
