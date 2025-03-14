@@ -1,19 +1,136 @@
-import { Injectable } from "@nestjs/common"
-import { InjectRepository } from "@nestjs/typeorm"
-import { User } from "src/users/entities/user.entity"
-import { Repository } from "typeorm"
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
+import { PrismaService } from "src/prisma/prisma.service"
+import { AuthDto } from "./dto"
+import * as bcrypt from "bcrypt"
+import { JwtService } from "@nestjs/jwt"
 
 @Injectable()
 export class AuthService {
-    constructor(@InjectRepository(User) private repo: Repository<User>) {}
+    constructor(
+        private prisma: PrismaService,
+        private jwtService: JwtService,
+    ) {}
 
-    handleRegister(email: string, password: string) {
-        console.log(email, password)
+    async register(dto: AuthDto) {
+        const hash = await this.hashData(dto.password)
+        const userExists = await this.prisma.user.findUnique({
+            where: {
+                email: dto.email,
+            },
+        })
+        if (userExists) throw new ForbiddenException("Email was already used")
+
+        const newUser = await this.prisma.user.create({
+            data: {
+                email: dto.email,
+                password: hash,
+            },
+        })
+
+        const tokens = await this.getTokens(newUser.id, newUser.email)
+        await this.updateRtHash(newUser.id, tokens.refresh_token)
+        return tokens
     }
 
-    handleTestRegister(email: string, password: string) {
-        const user = this.repo.create({ email, password })
+    async login(dto: AuthDto) {
+        const user = await this.prisma.user.findUnique({
+            where: {
+                email: dto.email,
+            },
+        })
+        if (!user) throw new NotFoundException("User not found")
 
-        return this.repo.save(user)
+        const isPasswordMatching = await bcrypt.compare(dto.password, user.password)
+
+        if (!isPasswordMatching) throw new ForbiddenException("Password is incorrect")
+        const tokens = await this.getTokens(user.id, user.email)
+        await this.updateRtHash(user.id, tokens.refresh_token)
+        return tokens
+    }
+
+    async logout(userId: string) {
+        await this.prisma.user.updateMany({
+            where: {
+                id: userId,
+                hashedRefreshToken: {
+                    not: null,
+                },
+            },
+            data: {
+                hashedRefreshToken: null,
+            },
+        })
+    }
+
+    async refreshToken(userId: string, refreshToken: string) {
+        const user = await this.prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+        })
+        if (!user) throw new NotFoundException("User not found")
+        if (!user.hashedRefreshToken) throw new NotFoundException("No refresh token found")
+
+        const refreshTokenMatches = await bcrypt.compare(refreshToken, user.hashedRefreshToken)
+
+        if (!refreshTokenMatches) throw new ForbiddenException("Access denied")
+
+        const tokens = await this.getTokens(user.id, refreshToken)
+        await this.updateRtHash(user.id, tokens.refresh_token)
+
+        return tokens
+    }
+
+    hashData(data: string) {
+        return bcrypt.hash(data, 10)
+    }
+
+    async updateRtHash(userId: string, refreshToken: string) {
+        const hashedRt = await this.hashData(refreshToken)
+
+        await this.prisma.user.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                hashedRefreshToken: hashedRt,
+            },
+        })
+    }
+
+    async getTokens(userId: string, email: string) {
+        const atSecret = process.env.AT_SECRET
+        const rtSecret = process.env.RT_SECRET
+
+        if (!atSecret || !rtSecret) {
+            throw new Error("JWT secret (AT_SECRET) is not defined in environment variables.")
+        }
+        const [at, rt] = await Promise.all([
+            this.jwtService.signAsync(
+                {
+                    sub: userId,
+                    email,
+                },
+                {
+                    secret: atSecret,
+                    expiresIn: 60 * 15, // 15 mins
+                },
+            ),
+            this.jwtService.signAsync(
+                {
+                    sub: userId,
+                    email,
+                },
+                {
+                    secret: rtSecret,
+                    expiresIn: 60 * 60 * 24 * 7, // 1 week
+                },
+            ),
+        ])
+
+        return {
+            access_token: at,
+            refresh_token: rt,
+        }
     }
 }
