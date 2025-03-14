@@ -13,6 +13,13 @@ export class AuthService {
 
     async register(dto: AuthDto) {
         const hash = await this.hashData(dto.password)
+        const userExists = await this.prisma.user.findUnique({
+            where: {
+                email: dto.email,
+            },
+        })
+        if (userExists) throw new ForbiddenException("Email was already used")
+
         const newUser = await this.prisma.user.create({
             data: {
                 email: dto.email,
