@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common"
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/prisma/prisma.service"
 import { AuthDto } from "./dto"
 import * as bcrypt from "bcrypt"
@@ -25,6 +25,30 @@ export class AuthService {
         return tokens
     }
 
+    async login(dto: AuthDto) {
+        const user = await this.prisma.user.findUnique({
+            where: {
+                email: dto.email,
+            },
+        })
+        if (!user) throw new NotFoundException("User not found")
+
+        const isPasswordMatching = await bcrypt.compare(dto.password, user.password)
+
+        if (!isPasswordMatching) throw new ForbiddenException("Password is incorrect")
+        const tokens = await this.getTokens(user.id, user.email)
+        await this.updateRtHash(user.id, tokens.refresh_token)
+        return tokens
+    }
+
+    logout() {}
+
+    refreshToken() {}
+
+    hashData(data: string) {
+        return bcrypt.hash(data, 10)
+    }
+
     async updateRtHash(userId: string, refreshToken: string) {
         const hashedRt = await this.hashData(refreshToken)
 
@@ -36,15 +60,6 @@ export class AuthService {
                 hashedRefreshToken: hashedRt,
             },
         })
-    }
-    login() {}
-
-    logout() {}
-
-    refreshToken() {}
-
-    hashData(data: string) {
-        return bcrypt.hash(data, 10)
     }
 
     async getTokens(userId: string, email: string) {
