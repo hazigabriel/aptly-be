@@ -1,8 +1,14 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
+import {
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
+    UnauthorizedException,
+} from "@nestjs/common"
 import { PrismaService } from "src/prisma/prisma.service"
 import { AuthDto } from "./dto"
 import * as bcrypt from "bcrypt"
 import { JwtService } from "@nestjs/jwt"
+import * as nodemailer from "nodemailer"
 
 @Injectable()
 export class AuthService {
@@ -11,8 +17,17 @@ export class AuthService {
         private jwtService: JwtService,
     ) {}
 
+    transporter = nodemailer.createTransport({
+        service: "Gmail",
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+    })
+
     async register(dto: AuthDto) {
         const hash = await this.hashData(dto.password)
+        const emailToken = await this.getEmailVerificationToken(dto.email)
         const userExists = await this.prisma.user.findUnique({
             where: {
                 email: dto.email,
@@ -24,10 +39,12 @@ export class AuthService {
             data: {
                 email: dto.email,
                 password: hash,
+                emailVerificationToken: emailToken,
             },
         })
 
         const tokens = await this.getTokens(newUser.id, newUser.email)
+        await this.sendVerificationEmail(dto.email, emailToken)
         await this.updateRtHash(newUser.id, tokens.refresh_token)
         return tokens
     }
@@ -81,6 +98,54 @@ export class AuthService {
         return tokens
     }
 
+    async resendEmailToken(email: string) {
+        const emailToken = await this.getEmailVerificationToken(email)
+
+        await this.prisma.user.update({
+            where: {
+                email,
+            },
+            data: {
+                emailVerificationToken: emailToken,
+            },
+        })
+        await this.sendVerificationEmail(email, emailToken)
+
+        return { message: "Token resent successfully", email }
+    }
+
+    async confirmEmail(token: string) {
+        try {
+            const etSecret = process.env.ET_SECRET
+            const verifiedToken = this.jwtService.verify(token, { secret: etSecret })
+
+            if (!etSecret) {
+                throw new Error("JWT secret (ET_SECRET) is not defined in environment variables.")
+            }
+
+            if (verifiedToken) {
+                await this.prisma.user.update({
+                    where: {
+                        email: verifiedToken.email,
+                    },
+                    data: {
+                        emailVerificationToken: null,
+                        isEmailVerified: true,
+                    },
+                })
+            }
+            return { message: "Email confirmed successfully", email: verifiedToken.email }
+        } catch (error) {
+            if (error.name === "TokenExpiredError") {
+                throw new UnauthorizedException("Token has expired.")
+            } else if (error.name === "JsonWebTokenError") {
+                throw new UnauthorizedException("Invalid token.")
+            } else {
+                throw new UnauthorizedException("An error occurred while processing the token.")
+            }
+        }
+    }
+
     hashData(data: string) {
         return bcrypt.hash(data, 10)
     }
@@ -132,5 +197,43 @@ export class AuthService {
             access_token: at,
             refresh_token: rt,
         }
+    }
+
+    async getEmailVerificationToken(email: string) {
+        const etSecret = process.env.ET_SECRET
+
+        if (!etSecret) {
+            throw new Error("JWT secret (ET_SECRET) is not defined in environment variables.")
+        }
+
+        const emailToken = await this.jwtService.signAsync(
+            {
+                email,
+            },
+            {
+                secret: etSecret,
+                expiresIn: 60 * 60,
+            },
+        )
+
+        return emailToken
+    }
+    async sendVerificationEmail(email: string, token: string) {
+        const transporter = nodemailer.createTransport({
+            service: "Gmail",
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        })
+
+        const link = `${process.env.FRONTEND_URL}/confirm-email/${token}`
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: "Verify Your Email",
+            text: `Click the link to verify your email: ${link}`,
+        })
     }
 }
