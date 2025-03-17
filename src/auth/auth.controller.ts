@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from "@nestjs/common"
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Param } from "@nestjs/common"
 import { AuthService } from "./auth.service"
 import { AuthDto } from "./dto"
 import { Tokens } from "./types"
@@ -37,5 +37,19 @@ export class AuthController {
         @GetCurrentUser("refreshToken") refreshToken: string,
     ) {
         return this.authService.refreshToken(userId, refreshToken)
+    }
+
+    @Public()
+    @Post("resend-email-token")
+    @HttpCode(HttpStatus.OK)
+    resendEmailToken(@Body("email") email: string) {
+        return this.authService.resendEmailToken(email)
+    }
+
+    @Public()
+    @Post("confirm-email")
+    @HttpCode(HttpStatus.OK)
+    confirmEmail(@Body("token") token: string) {
+        return this.authService.confirmEmail(token)
     }
 }

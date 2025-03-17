@@ -1,18 +1,46 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
+import {
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
+    UnauthorizedException,
+} from "@nestjs/common"
 import { PrismaService } from "src/prisma/prisma.service"
 import { AuthDto } from "./dto"
 import * as bcrypt from "bcrypt"
 import { JwtService } from "@nestjs/jwt"
+import * as nodemailer from "nodemailer"
 
 @Injectable()
 export class AuthService {
+    private transporter: nodemailer.Transporter
+    private emailUser: string | undefined
+    private emailPass: string | undefined
+
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
-    ) {}
+    ) {
+        this.emailUser = process.env.EMAIL_USER
+        this.emailPass = process.env.EMAIL_PASS
+
+        if (!this.emailUser || !this.emailPass) {
+            throw new Error(
+                "JWT secret (EMAIL_USER or EMAIL_PASS) is not defined in environment variables.",
+            )
+        }
+
+        this.transporter = nodemailer.createTransport({
+            service: "Gmail",
+            auth: {
+                user: this.emailUser,
+                pass: this.emailPass,
+            },
+        })
+    }
 
     async register(dto: AuthDto) {
         const hash = await this.hashData(dto.password)
+        const emailToken = await this.getEmailVerificationToken(dto.email)
         const userExists = await this.prisma.user.findUnique({
             where: {
                 email: dto.email,
@@ -24,10 +52,12 @@ export class AuthService {
             data: {
                 email: dto.email,
                 password: hash,
+                emailVerificationToken: emailToken,
             },
         })
 
         const tokens = await this.getTokens(newUser.id, newUser.email)
+        await this.sendVerificationEmail(dto.email, emailToken)
         await this.updateRtHash(newUser.id, tokens.refresh_token)
         return tokens
     }
@@ -81,6 +111,55 @@ export class AuthService {
         return tokens
     }
 
+    async resendEmailToken(email: string) {
+        const emailToken = await this.getEmailVerificationToken(email)
+
+        await this.prisma.user.update({
+            where: {
+                email,
+            },
+            data: {
+                emailVerificationToken: emailToken,
+            },
+        })
+        await this.sendVerificationEmail(email, emailToken)
+
+        return { message: "Token resent successfully", email }
+    }
+
+    async confirmEmail(token: string) {
+        try {
+            const etSecret = process.env.ET_SECRET
+
+            if (!etSecret) {
+                throw new Error("JWT secret (ET_SECRET) is not defined in environment variables.")
+            }
+
+            const verifiedToken = this.jwtService.verify(token, { secret: etSecret })
+
+            if (verifiedToken) {
+                await this.prisma.user.update({
+                    where: {
+                        email: verifiedToken.email,
+                    },
+                    data: {
+                        emailVerificationToken: null,
+                        isEmailVerified: true,
+                    },
+                })
+            }
+            return { message: "Email confirmed successfully", email: verifiedToken.email }
+        } catch (error) {
+            if (error.name === "TokenExpiredError") {
+                throw new UnauthorizedException("Token has expired.")
+            } else if (error.name === "JsonWebTokenError") {
+                throw new UnauthorizedException("Invalid token.")
+            } else {
+                throw new UnauthorizedException("An error occurred while processing the token.")
+            }
+        }
+    }
+
     hashData(data: string) {
         return bcrypt.hash(data, 10)
     }
@@ -103,8 +182,11 @@ export class AuthService {
         const rtSecret = process.env.RT_SECRET
 
         if (!atSecret || !rtSecret) {
-            throw new Error("JWT secret (AT_SECRET) is not defined in environment variables.")
+            throw new Error(
+                "JWT secret (AT_SECRET or RT_SECRET) is not defined in environment variables.",
+            )
         }
+
         const [at, rt] = await Promise.all([
             this.jwtService.signAsync(
                 {
@@ -132,5 +214,35 @@ export class AuthService {
             access_token: at,
             refresh_token: rt,
         }
+    }
+
+    async getEmailVerificationToken(email: string) {
+        const etSecret = process.env.ET_SECRET
+
+        if (!etSecret) {
+            throw new Error("JWT secret (ET_SECRET) is not defined in environment variables.")
+        }
+
+        const emailToken = await this.jwtService.signAsync(
+            {
+                email,
+            },
+            {
+                secret: etSecret,
+                expiresIn: 60 * 60, // 60 mins
+            },
+        )
+
+        return emailToken
+    }
+    async sendVerificationEmail(email: string, token: string) {
+        const link = `${process.env.FRONTEND_URL}/confirm-email/${token}`
+
+        await this.transporter.sendMail({
+            from: this.emailUser,
+            to: email,
+            subject: "Verify Your Email",
+            text: `Click the link to verify your email: ${link}`,
+        })
     }
 }
