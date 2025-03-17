@@ -12,18 +12,31 @@ import * as nodemailer from "nodemailer"
 
 @Injectable()
 export class AuthService {
+    private transporter: nodemailer.Transporter
+    private emailUser: string | undefined
+    private emailPass: string | undefined
+
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
-    ) {}
+    ) {
+        this.emailUser = process.env.EMAIL_USER
+        this.emailPass = process.env.EMAIL_PASS
 
-    transporter = nodemailer.createTransport({
-        service: "Gmail",
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-        },
-    })
+        if (!this.emailUser || !this.emailPass) {
+            throw new Error(
+                "JWT secret (EMAIL_USER or EMAIL_PASS) is not defined in environment variables.",
+            )
+        }
+
+        this.transporter = nodemailer.createTransport({
+            service: "Gmail",
+            auth: {
+                user: this.emailUser,
+                pass: this.emailPass,
+            },
+        })
+    }
 
     async register(dto: AuthDto) {
         const hash = await this.hashData(dto.password)
@@ -169,8 +182,11 @@ export class AuthService {
         const rtSecret = process.env.RT_SECRET
 
         if (!atSecret || !rtSecret) {
-            throw new Error("JWT secret (AT_SECRET) is not defined in environment variables.")
+            throw new Error(
+                "JWT secret (AT_SECRET or RT_SECRET) is not defined in environment variables.",
+            )
         }
+
         const [at, rt] = await Promise.all([
             this.jwtService.signAsync(
                 {
@@ -213,25 +229,17 @@ export class AuthService {
             },
             {
                 secret: etSecret,
-                expiresIn: 60 * 60,
+                expiresIn: 60 * 60, // 60 mins
             },
         )
 
         return emailToken
     }
     async sendVerificationEmail(email: string, token: string) {
-        const transporter = nodemailer.createTransport({
-            service: "Gmail",
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-            },
-        })
-
         const link = `${process.env.FRONTEND_URL}/confirm-email/${token}`
 
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+        await this.transporter.sendMail({
+            from: this.emailUser,
             to: email,
             subject: "Verify Your Email",
             text: `Click the link to verify your email: ${link}`,
