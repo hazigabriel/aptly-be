@@ -47,9 +47,9 @@ export class AuthController {
     }
 
     @Public()
-    @Post("confirm-email/:token")
+    @Post("confirm-email")
     @HttpCode(HttpStatus.OK)
-    confirmEmail(@Param("token") token: string) {
-        return this.authService.confirmEmail(token.trim())
+    confirmEmail(@Body("token") token: string) {
+        return this.authService.confirmEmail(token)
     }
 }

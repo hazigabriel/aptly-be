@@ -117,11 +117,12 @@ export class AuthService {
     async confirmEmail(token: string) {
         try {
             const etSecret = process.env.ET_SECRET
-            const verifiedToken = this.jwtService.verify(token, { secret: etSecret })
 
             if (!etSecret) {
                 throw new Error("JWT secret (ET_SECRET) is not defined in environment variables.")
             }
+
+            const verifiedToken = this.jwtService.verify(token, { secret: etSecret })
 
             if (verifiedToken) {
                 await this.prisma.user.update({
