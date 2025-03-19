@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     String   @id @default(uuid())
+  username               String?
+  firstName              String?
+  lastName               String?
+  email                  String   @unique
+  password               String
+  hashedRefreshToken     String?
+  emailVerificationToken String?
+  isEmailVerified        Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  resumes Resume[]
+
+  @@map("users")
+}
+
+model Resume {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileUrl    String? // TBD after FE implementation
+  parsedData Json? // TBD after FE implementation
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  jobDescriptions JobDescription[]
+
+  @@map("resumes")
+}
+
+model JobDescription {
+  id             String          @id @default(uuid())
+  resumeId       String
+  Resume         Resume          @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  data           Json
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  EnhancedResume EnhancedResume?
+  CoverLetter    CoverLetter?
+
+  @@map("job_descriptions")
+}
+
+model EnhancedResume {
+  id               String         @id @default(uuid())
+  jobDescriptionId String         @unique
+  jobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  data             Json
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@map("enhanced_resumes")
+}
+
+model CoverLetter {
+  id               String         @id @default(uuid())
+  jobDescriptionId String         @unique
+  jobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  data             Json
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@map("cover_letters")
+}

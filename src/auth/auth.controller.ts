@@ -1,14 +1,55 @@
-import { Body, Controller } from "@nestjs/common"
-import { Post } from "@nestjs/common"
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Param } from "@nestjs/common"
 import { AuthService } from "./auth.service"
-import { User } from "src/users/entities/user.entity"
+import { AuthDto } from "./dto"
+import { Tokens } from "./types"
+import { RefreshTokenGuard } from "./guards"
+import { GetCurrentUser, GetCurrentUserId, Public } from "./decorators"
 
 @Controller("auth")
 export class AuthController {
     constructor(private authService: AuthService) {}
 
-    @Post("/register")
-    registerUser(@Body() user: User) {
-        return this.authService.handleTestRegister(user.email, user.password)
+    @Public()
+    @Post("register")
+    register(@Body() dto: AuthDto): Promise<Tokens> {
+        return this.authService.register(dto)
+    }
+
+    @Public()
+    @Post("login")
+    @HttpCode(HttpStatus.OK)
+    login(@Body() dto: AuthDto): Promise<Tokens> {
+        return this.authService.login(dto)
+    }
+
+    @Post("logout")
+    @HttpCode(HttpStatus.OK)
+    logout(@GetCurrentUserId() userId: string) {
+        return this.authService.logout(userId)
+    }
+
+    @Public()
+    @UseGuards(RefreshTokenGuard)
+    @Post("refresh")
+    @HttpCode(HttpStatus.OK)
+    refreshToken(
+        @GetCurrentUserId() userId: string,
+        @GetCurrentUser("refreshToken") refreshToken: string,
+    ) {
+        return this.authService.refreshToken(userId, refreshToken)
+    }
+
+    @Public()
+    @Post("resend-email-token")
+    @HttpCode(HttpStatus.OK)
+    resendEmailToken(@Body("email") email: string) {
+        return this.authService.resendEmailToken(email)
+    }
+
+    @Public()
+    @Post("confirm-email")
+    @HttpCode(HttpStatus.OK)
+    confirmEmail(@Body("token") token: string) {
+        return this.authService.confirmEmail(token)
     }
 }
