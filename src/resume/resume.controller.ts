@@ -1,5 +1,5 @@
 import { Controller, UploadedFile, UseInterceptors } from "@nestjs/common"
-import { Post } from "@nestjs/common"
+import { Post, Body } from "@nestjs/common"
 import { GetCurrentUserId } from "src/auth/decorators"
 import { ResumeService } from "./resume.service"
 import { FileInterceptor } from "@nestjs/platform-express"
@@ -14,7 +14,8 @@ export class ResumeController {
     createResumeWithFile(
         @UploadedFile(new ResumeValidationPipe()) file: Express.Multer.File,
         @GetCurrentUserId() userId: string,
+        @Body("resumeName") resumeName: string,
     ) {
-        return this.resumeService.createResumeWithFile(userId, file)
+        return this.resumeService.createResumeWithFile(userId, file, resumeName)
     }
 }
