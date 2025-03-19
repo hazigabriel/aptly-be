@@ -1,13 +1,9 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
-import {
-    HttpException,
-    HttpStatus,
-    Inject,
-    Injectable,
-    InternalServerErrorException,
-} from "@nestjs/common"
+import { HttpStatus, Inject, Injectable, InternalServerErrorException } from "@nestjs/common"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { PrismaService } from "src/prisma/prisma.service"
+import { plainToInstance } from "class-transformer"
+import { ResumeResponseDto } from "./dtos/resume-response.dto"
 
 @Injectable()
 export class ResumeService {
@@ -20,9 +16,8 @@ export class ResumeService {
     ) {}
 
     async createResumeWithFile(userId: string, file: Express.Multer.File, resumeName: string) {
-        const bucketName = "aptly-be"
         const fileKey = `resumes/${new Date().getTime()}|${file.originalname}`
-
+        const bucketName: string = "aptly-be"
         await this.uploadFileToS3(bucketName, fileKey, file)
         // const presignedUrl = await this.generateFilePresignedUrl(bucketName, fileKey)
 
@@ -37,6 +32,31 @@ export class ResumeService {
             response: newResume,
             statusCode: HttpStatus.OK,
         }
+    }
+
+    async getResumesByUserId(userId: string) {
+        const bucketName: string = "aptly-be"
+
+        const resumes = await this.prisma.resume.findMany({
+            where: {
+                userId,
+            },
+        })
+        const transformedResumes = await Promise.all(
+            resumes.map(async resume => {
+                const fileUrl = resume.awsFileKey
+                    ? await this.generateFilePresignedUrl(bucketName, resume.awsFileKey)
+                    : null
+
+                return {
+                    ...plainToInstance(ResumeResponseDto, resume, {
+                        excludeExtraneousValues: true,
+                    }),
+                    fileUrl: fileUrl,
+                }
+            }),
+        )
+        return transformedResumes
     }
 
     async uploadFileToS3(
