@@ -4,6 +4,7 @@ import { AuthDto } from "./dto"
 import { Tokens } from "./types"
 import { RefreshTokenGuard } from "./guards"
 import { GetCurrentUser, GetCurrentUserId, Public } from "./decorators"
+import { ApiBody, ApiParam, ApiProperty } from "@nestjs/swagger"
 
 @Controller("auth")
 export class AuthController {
