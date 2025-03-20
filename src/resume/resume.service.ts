@@ -15,22 +15,23 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { PrismaService } from "src/prisma/prisma.service"
 import { plainToInstance } from "class-transformer"
 import { ResumeResponseDto } from "./dtos"
+import { ConfigService } from "@nestjs/config"
 
 @Injectable()
 export class ResumeService {
     constructor(
+        private configService: ConfigService,
         @Inject("S3_CLIENT")
         private readonly s3Client = new S3Client({
-            region: process.env.AWS_S3_REGION,
+            region: configService.get<string>("aws.region"),
         }),
         private prisma: PrismaService,
     ) {}
 
     async createResumeWithFile(userId: string, file: Express.Multer.File, resumeName: string) {
         const fileKey = `resumes/${new Date().getTime()}|${file.originalname}`
-        const bucketName: string = "aptly-be"
-        await this.uploadFileToS3(bucketName, fileKey, file)
-        // const presignedUrl = await this.generateFilePresignedUrl(bucketName, fileKey)
+        await this.uploadFileToS3(fileKey, file)
+        const presignedUrl = await this.generateFilePresignedUrl(fileKey)
 
         const newResume = await this.prisma.resume.create({
             data: {
@@ -40,14 +41,12 @@ export class ResumeService {
             },
         })
         return {
-            response: newResume,
+            response: { ...newResume, fileUrl: presignedUrl },
             statusCode: HttpStatus.OK,
         }
     }
 
     async getUserResumes(userId: string) {
-        const bucketName: string = "aptly-be"
-
         const resumes = await this.prisma.resume.findMany({
             where: {
                 userId,
@@ -56,7 +55,7 @@ export class ResumeService {
         const transformedResumes = await Promise.all(
             resumes.map(async resume => {
                 const fileUrl = resume.awsFileKey
-                    ? await this.generateFilePresignedUrl(bucketName, resume.awsFileKey)
+                    ? await this.generateFilePresignedUrl(resume.awsFileKey)
                     : null
 
                 return {
@@ -77,7 +76,7 @@ export class ResumeService {
             },
         })
         if (!resume) throw new NotFoundException("Resume not found")
-        await this.deleteFileFromS3("aptly-be", resume.awsFileKey as string)
+        await this.deleteFileFromS3(resume.awsFileKey as string)
         await this.prisma.resume.delete({
             where: {
                 id,
@@ -89,15 +88,11 @@ export class ResumeService {
         }
     }
 
-    async uploadFileToS3(
-        bucketName: string,
-        fileKey: string,
-        file: Express.Multer.File,
-    ): Promise<void> {
+    async uploadFileToS3(fileKey: string, file: Express.Multer.File): Promise<void> {
         try {
             await this.s3Client.send(
                 new PutObjectCommand({
-                    Bucket: bucketName,
+                    Bucket: this.configService.get<string>("aws.bucketName"),
                     Key: fileKey,
                     Body: file.buffer,
                 }),
@@ -107,11 +102,11 @@ export class ResumeService {
         }
     }
 
-    async deleteFileFromS3(bucketName: string, fileKey: string): Promise<void> {
+    async deleteFileFromS3(fileKey: string): Promise<void> {
         try {
             await this.s3Client.send(
                 new DeleteObjectCommand({
-                    Bucket: bucketName,
+                    Bucket: this.configService.get<string>("aws.bucketName"),
                     Key: fileKey,
                 }),
             )
@@ -123,12 +118,11 @@ export class ResumeService {
     }
 
     async generateFilePresignedUrl(
-        bucketName: string,
         fileKey: string,
         expiresIn: number = 60 * 60 * 24, // 1 day
     ): Promise<string> {
         const command = new GetObjectCommand({
-            Bucket: bucketName,
+            Bucket: this.configService.get<string>("aws.bucketName"),
             Key: fileKey,
         })
 

@@ -8,9 +8,20 @@ import { AuthModule } from "./auth/auth.module"
 import { APP_GUARD } from "@nestjs/core"
 import { AccessTokenGuard } from "./auth/guards"
 import { ResumeModule } from "./resume/resume.module"
+import envConfiguration from "./config/envConfiguration"
 
 @Module({
-    imports: [UsersModule, ConfigModule.forRoot(), AuthModule, PrismaModule, ResumeModule],
+    imports: [
+        UsersModule,
+        ConfigModule.forRoot({
+            isGlobal: true,
+            envFilePath: `.env.${process.env.NODE_ENV}`,
+            load: [envConfiguration],
+        }),
+        AuthModule,
+        PrismaModule,
+        ResumeModule,
+    ],
     controllers: [AppController],
     providers: [
         AppService,

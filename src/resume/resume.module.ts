@@ -4,6 +4,7 @@ import { ResumeService } from "./resume.service"
 import { S3Client } from "@aws-sdk/client-s3"
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler"
 import { APP_GUARD } from "@nestjs/core"
+import { ConfigService } from "@nestjs/config"
 
 @Module({
     imports: [
@@ -21,11 +22,12 @@ import { APP_GUARD } from "@nestjs/core"
         ResumeService,
         {
             provide: "S3_CLIENT",
-            useFactory: () => {
+            useFactory: (configService: ConfigService) => {
                 return new S3Client({
-                    region: process.env.AWS_S3_REGION,
+                    region: configService.get<string>("aws.region"),
                 })
             },
+            inject: [ConfigService],
         },
         {
             provide: APP_GUARD,

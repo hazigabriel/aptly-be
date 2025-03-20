@@ -2,11 +2,12 @@ import { PassportStrategy } from "@nestjs/passport"
 import { ExtractJwt, Strategy } from "passport-jwt"
 import { Request } from "express"
 import { Injectable } from "@nestjs/common"
+import { ConfigService } from "@nestjs/config"
 
 @Injectable()
 export class RefreshTokenStrategy extends PassportStrategy(Strategy, "jwt-refresh") {
-    constructor() {
-        const secret = process.env.RT_SECRET
+    constructor(configService: ConfigService) {
+        const secret = configService.get<string>("secret.refresh")
         if (!secret) {
             throw new Error("JWT secret (RT_SECRET) is not defined in environment variables.")
         }
