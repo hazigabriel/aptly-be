@@ -1,6 +1,6 @@
 export default () => ({
     app: {
-        frontEndUrl: process.env.FRONT,
+        frontEndUrl: process.env.FRONTEND_URL,
     },
     aws: {
         region: process.env.AWS_S3_REGION,
