@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common"
+import { ConfigService } from "@nestjs/config"
 import { PassportStrategy } from "@nestjs/passport"
 import { ExtractJwt, Strategy } from "passport-jwt"
 
 @Injectable()
 export class AccessTokenStrategy extends PassportStrategy(Strategy, "jwt") {
-    constructor() {
-        const secret = process.env.AT_SECRET
+    constructor(configService: ConfigService) {
+        const secret = configService.get<string>("secret.access")
         if (!secret) {
             throw new Error("JWT secret (AT_SECRET) is not defined in environment variables.")
         }
