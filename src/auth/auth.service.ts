@@ -10,6 +10,7 @@ import * as bcrypt from "bcrypt"
 import { JwtService } from "@nestjs/jwt"
 import * as nodemailer from "nodemailer"
 import { ConfigService } from "@nestjs/config"
+import { expiredVerificationEmail, verificationEmail } from "src/emailTemplates"
 
 @Injectable()
 export class AuthService {
@@ -54,7 +55,6 @@ export class AuthService {
     }
 
     async login(dto: AuthDto) {
-        console.log(this.configService.get("secret.access"))
         const user = await this.prisma.user.findUnique({
             where: {
                 email: dto.email,
@@ -114,7 +114,7 @@ export class AuthService {
                 emailVerificationToken: emailToken,
             },
         })
-        await this.sendVerificationEmail(email, emailToken)
+        await this.sendVerificationEmail(email, emailToken, true)
 
         return { message: "Token resent successfully", email }
     }
@@ -227,14 +227,15 @@ export class AuthService {
 
         return emailToken
     }
-    async sendVerificationEmail(email: string, token: string) {
+    async sendVerificationEmail(email: string, token: string, resend: boolean = false) {
         const link = `${this.configService.get<string>("app.frontEndUrl")}/confirm-email/${token}`
+        const emailTemplate = resend ? expiredVerificationEmail(link) : verificationEmail(link)
 
         await this.transporter.sendMail({
             from: this.configService.get<string>("email.user"),
             to: email,
-            subject: "Verify Your Email",
-            text: `Click the link to verify your email: ${link}`,
+            subject: emailTemplate.subject,
+            html: emailTemplate.body,
         })
     }
 }
