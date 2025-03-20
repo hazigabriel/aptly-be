@@ -1,9 +1,11 @@
-import { Controller, Param, UploadedFile, UseInterceptors } from "@nestjs/common"
+import { Controller, Delete, Param, UploadedFile, UseInterceptors } from "@nestjs/common"
 import { Post, Get, Body } from "@nestjs/common"
 import { GetCurrentUserId } from "src/auth/decorators"
 import { ResumeService } from "./resume.service"
 import { FileInterceptor } from "@nestjs/platform-express"
 import { ResumeValidationPipe } from "./pipes/resume-validation.pipe"
+import { ApiParam } from "@nestjs/swagger"
+import { CreateResumeDto } from "./dtos"
 
 @Controller("resume")
 export class ResumeController {
@@ -14,13 +16,22 @@ export class ResumeController {
     createResumeWithFile(
         @UploadedFile(new ResumeValidationPipe()) file: Express.Multer.File,
         @GetCurrentUserId() userId: string,
-        @Body("resumeName") resumeName: string,
+        @Body() createResumeDto: CreateResumeDto,
     ) {
-        return this.resumeService.createResumeWithFile(userId, file, resumeName)
+        return this.resumeService.createResumeWithFile(userId, file, createResumeDto.resumeName)
     }
 
     @Get("my-resumes")
-    getResumesByUserId(@GetCurrentUserId() userId: string) {
-        return this.resumeService.getResumesByUserId(userId)
+    getUserResumes(@GetCurrentUserId() userId: string) {
+        return this.resumeService.getUserResumes(userId)
+    }
+
+    @Delete(":id")
+    @ApiParam({
+        name: "id",
+        type: String,
+    })
+    deleteResume(@Param("id") id: string) {
+        return this.resumeService.deleteResume(id)
     }
 }

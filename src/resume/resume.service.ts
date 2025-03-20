@@ -1,9 +1,20 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
-import { HttpStatus, Inject, Injectable, InternalServerErrorException } from "@nestjs/common"
+import {
+    GetObjectCommand,
+    PutObjectCommand,
+    DeleteObjectCommand,
+    S3Client,
+} from "@aws-sdk/client-s3"
+import {
+    HttpStatus,
+    Inject,
+    Injectable,
+    InternalServerErrorException,
+    NotFoundException,
+} from "@nestjs/common"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { PrismaService } from "src/prisma/prisma.service"
 import { plainToInstance } from "class-transformer"
-import { ResumeResponseDto } from "./dtos/resume-response.dto"
+import { ResumeResponseDto } from "./dtos"
 
 @Injectable()
 export class ResumeService {
@@ -34,7 +45,7 @@ export class ResumeService {
         }
     }
 
-    async getResumesByUserId(userId: string) {
+    async getUserResumes(userId: string) {
         const bucketName: string = "aptly-be"
 
         const resumes = await this.prisma.resume.findMany({
@@ -59,6 +70,25 @@ export class ResumeService {
         return transformedResumes
     }
 
+    async deleteResume(id: string) {
+        const resume = await this.prisma.resume.findUnique({
+            where: {
+                id,
+            },
+        })
+        if (!resume) throw new NotFoundException("Resume not found")
+        await this.deleteFileFromS3("aptly-be", resume.awsFileKey as string)
+        await this.prisma.resume.delete({
+            where: {
+                id,
+            },
+        })
+        return {
+            response: "Resume deleted succesfully!",
+            statusCode: HttpStatus.OK,
+        }
+    }
+
     async uploadFileToS3(
         bucketName: string,
         fileKey: string,
@@ -76,6 +106,22 @@ export class ResumeService {
             throw new InternalServerErrorException(`Failed to upload file to S3: ${error.message}`)
         }
     }
+
+    async deleteFileFromS3(bucketName: string, fileKey: string): Promise<void> {
+        try {
+            await this.s3Client.send(
+                new DeleteObjectCommand({
+                    Bucket: bucketName,
+                    Key: fileKey,
+                }),
+            )
+        } catch (error) {
+            throw new InternalServerErrorException(
+                `Failed to delete resume from S3: ${error.message}`,
+            )
+        }
+    }
+
     async generateFilePresignedUrl(
         bucketName: string,
         fileKey: string,

@@ -7,7 +7,7 @@ import { PrismaModule } from "./prisma/prisma.module"
 import { AuthModule } from "./auth/auth.module"
 import { APP_GUARD } from "@nestjs/core"
 import { AccessTokenGuard } from "./auth/guards"
-import { ResumeModule } from './resume/resume.module';
+import { ResumeModule } from "./resume/resume.module"
 
 @Module({
     imports: [UsersModule, ConfigModule.forRoot(), AuthModule, PrismaModule, ResumeModule],
