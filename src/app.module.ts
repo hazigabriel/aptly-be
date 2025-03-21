@@ -7,9 +7,23 @@ import { PrismaModule } from "./prisma/prisma.module"
 import { AuthModule } from "./auth/auth.module"
 import { APP_GUARD } from "@nestjs/core"
 import { AccessTokenGuard } from "./auth/guards"
+import { ResumeModule } from "./resume/resume.module"
+import { JobDescriptionModule } from "./job-description/job-description.module"
+import envConfiguration from "./config/envConfiguration"
 
 @Module({
-    imports: [UsersModule, ConfigModule.forRoot(), AuthModule, PrismaModule],
+    imports: [
+        UsersModule,
+        ConfigModule.forRoot({
+            isGlobal: true,
+            envFilePath: `.env.${process.env.NODE_ENV}`,
+            load: [envConfiguration],
+        }),
+        AuthModule,
+        PrismaModule,
+        ResumeModule,
+        JobDescriptionModule,
+    ],
     controllers: [AppController],
     providers: [
         AppService,

@@ -9,31 +9,23 @@ import { AuthDto } from "./dto"
 import * as bcrypt from "bcrypt"
 import { JwtService } from "@nestjs/jwt"
 import * as nodemailer from "nodemailer"
+import { ConfigService } from "@nestjs/config"
+import { expiredVerificationEmail, verificationEmail } from "src/emailTemplates"
 
 @Injectable()
 export class AuthService {
     private transporter: nodemailer.Transporter
-    private emailUser: string | undefined
-    private emailPass: string | undefined
 
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
+        private configService: ConfigService,
     ) {
-        this.emailUser = process.env.EMAIL_USER
-        this.emailPass = process.env.EMAIL_PASS
-
-        if (!this.emailUser || !this.emailPass) {
-            throw new Error(
-                "JWT secret (EMAIL_USER or EMAIL_PASS) is not defined in environment variables.",
-            )
-        }
-
         this.transporter = nodemailer.createTransport({
             service: "Gmail",
             auth: {
-                user: this.emailUser,
-                pass: this.emailPass,
+                user: this.configService.get("email.user"),
+                pass: this.configService.get("email.pass"),
             },
         })
     }
@@ -122,14 +114,14 @@ export class AuthService {
                 emailVerificationToken: emailToken,
             },
         })
-        await this.sendVerificationEmail(email, emailToken)
+        await this.sendVerificationEmail(email, emailToken, true)
 
         return { message: "Token resent successfully", email }
     }
 
     async confirmEmail(token: string) {
         try {
-            const etSecret = process.env.ET_SECRET
+            const etSecret = this.configService.get<string>("secret.email")
 
             if (!etSecret) {
                 throw new Error("JWT secret (ET_SECRET) is not defined in environment variables.")
@@ -178,8 +170,8 @@ export class AuthService {
     }
 
     async getTokens(userId: string, email: string) {
-        const atSecret = process.env.AT_SECRET
-        const rtSecret = process.env.RT_SECRET
+        const atSecret = this.configService.get<string>("secret.access")
+        const rtSecret = this.configService.get<string>("secret.refresh")
 
         if (!atSecret || !rtSecret) {
             throw new Error(
@@ -217,7 +209,7 @@ export class AuthService {
     }
 
     async getEmailVerificationToken(email: string) {
-        const etSecret = process.env.ET_SECRET
+        const etSecret = this.configService.get<string>("secret.email")
 
         if (!etSecret) {
             throw new Error("JWT secret (ET_SECRET) is not defined in environment variables.")
@@ -235,14 +227,15 @@ export class AuthService {
 
         return emailToken
     }
-    async sendVerificationEmail(email: string, token: string) {
-        const link = `${process.env.FRONTEND_URL}/confirm-email/${token}`
+    async sendVerificationEmail(email: string, token: string, resend: boolean = false) {
+        const link = `${this.configService.get<string>("app.frontEndUrl")}/confirm-email/${token}`
+        const emailTemplate = resend ? expiredVerificationEmail(link) : verificationEmail(link)
 
         await this.transporter.sendMail({
-            from: this.emailUser,
+            from: this.configService.get<string>("email.user"),
             to: email,
-            subject: "Verify Your Email",
-            text: `Click the link to verify your email: ${link}`,
+            subject: emailTemplate.subject,
+            html: emailTemplate.body,
         })
     }
 }

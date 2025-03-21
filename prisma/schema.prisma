@@ -35,7 +35,8 @@ model Resume {
   id         String   @id @default(uuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fileUrl    String? // TBD after FE implementation
+  awsFileKey String?
+  resumeName String
   parsedData Json? // TBD after FE implementation
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

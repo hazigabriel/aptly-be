@@ -1,9 +1,10 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Param } from "@nestjs/common"
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from "@nestjs/common"
 import { AuthService } from "./auth.service"
 import { AuthDto } from "./dto"
 import { Tokens } from "./types"
 import { RefreshTokenGuard } from "./guards"
 import { GetCurrentUser, GetCurrentUserId, Public } from "./decorators"
+import { ApiBody, ApiParam, ApiProperty } from "@nestjs/swagger"
 
 @Controller("auth")
 export class AuthController {
