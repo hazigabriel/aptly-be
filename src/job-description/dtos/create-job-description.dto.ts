@@ -2,7 +2,7 @@ import { ApiProperty } from "@nestjs/swagger"
 import { Type } from "class-transformer"
 import { IsString, IsNotEmpty, ValidateNested } from "class-validator"
 
-class JobData {
+class JobDescriptionData {
     @ApiProperty({ type: String })
     @IsString()
     @IsNotEmpty()
@@ -28,9 +28,9 @@ export class CreateJobDescriptionDto {
     resumeId: string
 
     @ApiProperty({
-        type: JobData,
+        type: JobDescriptionData,
     })
     @ValidateNested()
-    @Type(() => JobData)
-    data: JobData
+    @Type(() => JobDescriptionData)
+    data: JobDescriptionData
 }
