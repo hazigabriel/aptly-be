@@ -33,7 +33,7 @@ export class GetJobDescriptionsByResumeDto {
     @ApiProperty({
         type: Number,
         required: false,
-        default: "asc",
+        default: "desc",
         enum: ["asc", "desc"],
     })
     @IsString()
