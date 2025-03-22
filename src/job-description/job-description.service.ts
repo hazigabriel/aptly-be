@@ -28,8 +28,8 @@ export class JobDescriptionService {
     }
 
     async getByResume(data: GetJobDescriptionsByResumeDto) {
-        const pageSize = Number(data.pageSize) || 20
-        const pageNumber = Number(data.pageNumber) || 1
+        const pageSize = data.pageSize || 20
+        const pageNumber = data.pageNumber || 1
         const sortDirection: "asc" | "desc" = data.sortDirection || "desc"
         const [result, total] = await Promise.all([
             await this.prisma.jobDescription.findMany({
