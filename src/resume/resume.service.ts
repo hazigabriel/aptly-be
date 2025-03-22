@@ -14,7 +14,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { PrismaService } from "src/prisma/prisma.service"
 import { plainToInstance } from "class-transformer"
-import { ResumeResponseDto } from "./dtos"
+import { GetUserResumesDto, ResumeResponseDto } from "./dtos"
 import { ConfigService } from "@nestjs/config"
 
 @Injectable()
@@ -46,10 +46,14 @@ export class ResumeService {
         }
     }
 
-    async getUserResumes(userId: string) {
+    async getUserResumes(userId: string, queryData: GetUserResumesDto) {
+        const sortDirection: "asc" | "desc" = queryData.sortDirection || "desc"
         const resumes = await this.prisma.resume.findMany({
             where: {
                 userId,
+            },
+            orderBy: {
+                createdAt: sortDirection,
             },
         })
         const transformedResumes = await Promise.all(
