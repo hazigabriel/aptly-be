@@ -1,11 +1,12 @@
 import { HttpStatus, Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "src/prisma/prisma.service"
-import { CreateJobDescriptionDto } from "./dtos"
-import { GetJobDescriptionsByResumeDto } from "./dtos/get-jd-by-resume.dto"
 import {
+    CreateJobDescriptionDto,
+    GetJobDescriptionsByResumeDto,
     UpdateJobDescriptionData,
     UpdateJobDescriptionDto,
-} from "./dtos/update-job-description.dto"
+} from "./dtos"
+
 import { instanceToPlain, plainToInstance } from "class-transformer"
 
 @Injectable()
