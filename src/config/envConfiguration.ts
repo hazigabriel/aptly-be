@@ -25,5 +25,6 @@ export default () => ({
     },
     llm: {
         openAIApiKey: process.env.OPENAI_API_KEY,
+        openAIParseTextPrompt: process.env.OPENAI_PARSE_TEXT_PROMPT,
     },
 })
