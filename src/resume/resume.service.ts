@@ -16,6 +16,7 @@ import { PrismaService } from "src/prisma/prisma.service"
 import { plainToInstance } from "class-transformer"
 import { GetUserResumesDto, ResumeResponseDto } from "./dtos"
 import { ConfigService } from "@nestjs/config"
+import { LlmService } from "src/llm/llm.service"
 
 @Injectable()
 export class ResumeService {
@@ -26,6 +27,7 @@ export class ResumeService {
             region: configService.get<string>("aws.region"),
         }),
         private prisma: PrismaService,
+        private llmService: LlmService,
     ) {}
 
     async createResumeWithFile(userId: string, file: Express.Multer.File, resumeName: string) {
