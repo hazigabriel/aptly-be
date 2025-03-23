@@ -5,6 +5,7 @@ import { S3Client } from "@aws-sdk/client-s3"
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler"
 import { APP_GUARD } from "@nestjs/core"
 import { ConfigService } from "@nestjs/config"
+import { LlmService } from "src/llm/llm.service"
 
 @Module({
     imports: [
@@ -33,6 +34,7 @@ import { ConfigService } from "@nestjs/config"
             provide: APP_GUARD,
             useClass: ThrottlerGuard,
         },
+        LlmService,
     ],
 })
 export class ResumeModule {}

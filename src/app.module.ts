@@ -9,6 +9,7 @@ import { APP_GUARD } from "@nestjs/core"
 import { AccessTokenGuard } from "./auth/guards"
 import { ResumeModule } from "./resume/resume.module"
 import { JobDescriptionModule } from "./job-description/job-description.module"
+import { LlmService } from "./llm/llm.service"
 import envConfiguration from "./config/envConfiguration"
 
 @Module({
@@ -31,6 +32,7 @@ import envConfiguration from "./config/envConfiguration"
             provide: APP_GUARD,
             useClass: AccessTokenGuard,
         },
+        LlmService,
     ],
 })
 export class AppModule {}
