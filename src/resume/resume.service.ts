@@ -17,6 +17,9 @@ import { plainToInstance } from "class-transformer"
 import { GetUserResumesDto, ResumeResponseDto } from "./dtos"
 import { ConfigService } from "@nestjs/config"
 import { LlmService } from "src/llm/llm.service"
+import * as path from "path"
+import * as mammoth from "mammoth"
+import * as pdfParse from "pdf-parse"
 
 @Injectable()
 export class ResumeService {
@@ -32,6 +35,14 @@ export class ResumeService {
 
     async createResumeWithFile(userId: string, file: Express.Multer.File, resumeName: string) {
         const fileKey = `resumes/${new Date().getTime()}|${file.originalname}`
+        const fileExtension = path.extname(file.originalname).toLocaleLowerCase().replace(".", "")
+        let rawText: string
+        if (fileExtension === "pdf") {
+            rawText = await this.extractPdfText(file)
+        } else {
+            rawText = await this.extractWordText(file)
+        }
+
         await this.uploadFileToS3(fileKey, file)
         const presignedUrl = await this.generateFilePresignedUrl(fileKey)
 
@@ -40,8 +51,11 @@ export class ResumeService {
                 userId: userId,
                 resumeName,
                 awsFileKey: fileKey,
+                originalResumeName: file.originalname,
+                parsedData: await this.llmService.parseRawData(rawText),
             },
         })
+
         return {
             response: { ...newResume, fileUrl: presignedUrl },
             statusCode: HttpStatus.OK,
@@ -135,5 +149,23 @@ export class ResumeService {
         const presignedUrl = await getSignedUrl(this.s3Client, command, { expiresIn })
 
         return presignedUrl
+    }
+
+    async extractPdfText(file: Express.Multer.File) {
+        try {
+            const data = await pdfParse(file.buffer)
+            return data.text
+        } catch (error) {
+            throw new Error(`Failed to extract text from PDF: ${error.message}`)
+        }
+    }
+
+    async extractWordText(file: Express.Multer.File) {
+        try {
+            const data = await mammoth.extractRawText({ buffer: file.buffer })
+            return data.value
+        } catch (error) {
+            throw new Error("Failed to extract text from Word file")
+        }
     }
 }
