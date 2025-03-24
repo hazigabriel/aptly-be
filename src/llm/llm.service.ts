@@ -33,7 +33,10 @@ export class LlmService {
                 },
             ],
         })
-
-        return response.choices[0].message.content
+        const parsedContent = response.choices[0].message.content
+        if (!parsedContent) {
+            throw new InternalServerErrorException("Failed to parse resume text")
+        }
+        return parsedContent
     }
 }
