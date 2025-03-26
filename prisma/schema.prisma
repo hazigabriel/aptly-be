@@ -32,14 +32,15 @@ model User {
 }
 
 model Resume {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  awsFileKey String?
-  resumeName String
-  parsedData Json? // TBD after FE implementation
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  awsFileKey         String?
+  resumeName         String
+  originalResumeName String
+  parsedData         Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   jobDescriptions JobDescription[]
 
@@ -47,22 +48,22 @@ model Resume {
 }
 
 model JobDescription {
-  id             String          @id @default(uuid())
+  id             String           @id @default(uuid())
   resumeId       String
-  Resume         Resume          @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  Resume         Resume           @relation(fields: [resumeId], references: [id], onDelete: Cascade)
   data           Json
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  EnhancedResume EnhancedResume?
-  CoverLetter    CoverLetter?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  EnhancedResume EnhancedResume[]
+  CoverLetter    CoverLetter[]
 
   @@map("job_descriptions")
 }
 
 model EnhancedResume {
   id               String         @id @default(uuid())
-  jobDescriptionId String         @unique
-  jobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  jobDescriptionId String
+  JobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
   data             Json
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -72,8 +73,8 @@ model EnhancedResume {
 
 model CoverLetter {
   id               String         @id @default(uuid())
-  jobDescriptionId String         @unique
-  jobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  jobDescriptionId String
+  JobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
   data             Json
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt

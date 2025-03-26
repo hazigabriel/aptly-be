@@ -1,8 +1,11 @@
 import { Body, Controller, Post, Get, Query, Put, Delete, Param } from "@nestjs/common"
 import { JobDescriptionService } from "./job-description.service"
-import { CreateJobDescriptionDto } from "./dtos"
-import { GetJobDescriptionsByResumeDto } from "./dtos/get-jd-by-resume.dto"
-import { UpdateJobDescriptionDto } from "./dtos/update-job-description.dto"
+import {
+    CreateJobDescriptionDto,
+    DeleteJobDescriptionDto,
+    GetJobDescriptionsByResumeDto,
+    UpdateJobDescriptionDto,
+} from "./dtos"
 
 @Controller("job-description")
 export class JobDescriptionController {
@@ -24,7 +27,7 @@ export class JobDescriptionController {
     }
 
     @Delete(":id")
-    handleDeleteJobDescription(@Param("id") id: string) {
-        return this.jobDescriptionService.deleteJobDescription(id)
+    handleDeleteJobDescription(@Param() data: DeleteJobDescriptionDto) {
+        return this.jobDescriptionService.deleteJobDescription(data.id)
     }
 }

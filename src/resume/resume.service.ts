@@ -14,8 +14,12 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { PrismaService } from "src/prisma/prisma.service"
 import { plainToInstance } from "class-transformer"
-import { ResumeResponseDto } from "./dtos"
+import { GetUserResumesDto, ResumeResponseDto } from "./dtos"
 import { ConfigService } from "@nestjs/config"
+import { LlmService } from "src/llm/llm.service"
+import * as path from "path"
+import * as mammoth from "mammoth"
+import * as pdfParse from "pdf-parse"
 
 @Injectable()
 export class ResumeService {
@@ -26,10 +30,19 @@ export class ResumeService {
             region: configService.get<string>("aws.region"),
         }),
         private prisma: PrismaService,
+        private llmService: LlmService,
     ) {}
 
     async createResumeWithFile(userId: string, file: Express.Multer.File, resumeName: string) {
         const fileKey = `resumes/${new Date().getTime()}|${file.originalname}`
+        const fileExtension = path.extname(file.originalname).toLocaleLowerCase().replace(".", "")
+        let rawText: string
+        if (fileExtension === "pdf") {
+            rawText = await this.extractPdfText(file)
+        } else {
+            rawText = await this.extractWordText(file)
+        }
+
         await this.uploadFileToS3(fileKey, file)
         const presignedUrl = await this.generateFilePresignedUrl(fileKey)
 
@@ -38,18 +51,25 @@ export class ResumeService {
                 userId: userId,
                 resumeName,
                 awsFileKey: fileKey,
+                originalResumeName: file.originalname,
+                parsedData: await this.llmService.parseRawData(rawText),
             },
         })
+
         return {
             response: { ...newResume, fileUrl: presignedUrl },
             statusCode: HttpStatus.OK,
         }
     }
 
-    async getUserResumes(userId: string) {
+    async getUserResumes(userId: string, queryData: GetUserResumesDto) {
+        const sortDirection: "asc" | "desc" = queryData.sortDirection || "desc"
         const resumes = await this.prisma.resume.findMany({
             where: {
                 userId,
+            },
+            orderBy: {
+                createdAt: sortDirection,
             },
         })
         const transformedResumes = await Promise.all(
@@ -69,13 +89,19 @@ export class ResumeService {
         return transformedResumes
     }
 
-    async deleteResume(id: string) {
+    async findOne(id: string) {
         const resume = await this.prisma.resume.findUnique({
             where: {
                 id,
             },
         })
+
         if (!resume) throw new NotFoundException("Resume not found")
+
+        return resume
+    }
+    async deleteResume(id: string) {
+        const resume = await this.findOne(id)
         await this.deleteFileFromS3(resume.awsFileKey as string)
         await this.prisma.resume.delete({
             where: {
@@ -129,5 +155,23 @@ export class ResumeService {
         const presignedUrl = await getSignedUrl(this.s3Client, command, { expiresIn })
 
         return presignedUrl
+    }
+
+    async extractPdfText(file: Express.Multer.File) {
+        try {
+            const data = await pdfParse(file.buffer)
+            return data.text
+        } catch (error) {
+            throw new Error(`Failed to extract text from PDF: ${error.message}`)
+        }
+    }
+
+    async extractWordText(file: Express.Multer.File) {
+        try {
+            const data = await mammoth.extractRawText({ buffer: file.buffer })
+            return data.value
+        } catch (error) {
+            throw new Error("Failed to extract text from Word file")
+        }
     }
 }

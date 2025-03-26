@@ -31,7 +31,7 @@ export class GetJobDescriptionsByResumeDto {
     pageSize: number
 
     @ApiProperty({
-        type: Number,
+        type: String,
         required: false,
         default: "desc",
         enum: ["asc", "desc"],
