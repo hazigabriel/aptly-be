@@ -14,9 +14,7 @@ export class LlmService {
 
     async parseRawData(rawData: string): Promise<string> {
         const response = await this.getOpenAIResponse(RESUME_PARSE_PROMPT, rawData)
-        if (!response) {
-            throw new InternalServerErrorException("Could not parse the resume, try again later.")
-        }
+
         return response
     }
 
@@ -26,12 +24,6 @@ export class LlmService {
             jobDescription: jobDescriptionData,
         })
         const response = await this.getOpenAIResponse(COVER_LETTER_PROMPT, rawData)
-
-        if (!response) {
-            throw new InternalServerErrorException(
-                "Could not generate the cover letter, try again later.",
-            )
-        }
 
         return response
     }
@@ -53,7 +45,7 @@ export class LlmService {
         const responseContent = response.choices[0].message.content
 
         if (!responseContent) {
-            throw new InternalServerErrorException("Failed to parse resume text")
+            throw new InternalServerErrorException("Failed to retrieve response from OpenAI. ")
         }
 
         return responseContent
