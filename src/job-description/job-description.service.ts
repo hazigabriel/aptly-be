@@ -27,7 +27,7 @@ export class JobDescriptionService {
         }
     }
 
-    async getByResume(data: GetJobDescriptionsByResumeDto) {
+    async getByResume(data: GetJobDescriptionsByResumeDto): Promise<object> {
         const pageSize = data.pageSize || 20
         const pageNumber = data.pageNumber || 1
         const sortDirection: "asc" | "desc" = data.sortDirection || "desc"

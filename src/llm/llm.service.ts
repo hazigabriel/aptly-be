@@ -18,7 +18,7 @@ export class LlmService {
         return response
     }
 
-    async generateCoverLetter(resumeData, jobDescriptionData) {
+    async generateCoverLetter(resumeData, jobDescriptionData): Promise<string> {
         const rawData = JSON.stringify({
             resume: resumeData,
             jobDescription: jobDescriptionData,
