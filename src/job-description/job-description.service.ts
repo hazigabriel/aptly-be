@@ -27,7 +27,7 @@ export class JobDescriptionService {
         }
     }
 
-    async getByResume(data: GetJobDescriptionsByResumeDto) {
+    async getByResume(data: GetJobDescriptionsByResumeDto): Promise<object> {
         const pageSize = data.pageSize || 20
         const pageNumber = data.pageNumber || 1
         const sortDirection: "asc" | "desc" = data.sortDirection || "desc"
@@ -57,21 +57,27 @@ export class JobDescriptionService {
             statusCode: HttpStatus.OK,
         }
     }
+    async findOne(id: string) {
+        const jobDescription = await this.prisma.jobDescription.findUnique({
+            where: {
+                id,
+            },
+        })
+        if (!jobDescription) {
+            throw new NotFoundException("No Job Descriptioon found with this id")
+        }
+
+        return jobDescription
+    }
 
     async updateJobDescription(dto: UpdateJobDescriptionDto) {
         const data = plainToInstance(UpdateJobDescriptionData, dto.data, {
             excludeExtraneousValues: true,
             //ensure no new properties are passed
         })
-        const jobDescriptionExits = await this.prisma.jobDescription.findUnique({
-            where: {
-                id: dto.id,
-            },
-        })
 
-        if (!jobDescriptionExits) {
-            throw new NotFoundException("No Job Descriptioon found with this id")
-        }
+        //try to find jd and throw err if it doesn't exist
+        await this.findOne(dto.id)
 
         const newJobDescription = await this.prisma.jobDescription.update({
             where: {
@@ -89,15 +95,7 @@ export class JobDescriptionService {
     }
 
     async deleteJobDescription(id: string) {
-        const jobDescriptionExits = await this.prisma.jobDescription.findUnique({
-            where: {
-                id,
-            },
-        })
-
-        if (!jobDescriptionExits) {
-            throw new NotFoundException("No Job Descriptioon found with this id")
-        }
+        await this.findOne(id)
 
         await this.prisma.jobDescription.delete({
             where: {

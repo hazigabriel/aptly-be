@@ -89,13 +89,19 @@ export class ResumeService {
         return transformedResumes
     }
 
-    async deleteResume(id: string) {
+    async findOne(id: string) {
         const resume = await this.prisma.resume.findUnique({
             where: {
                 id,
             },
         })
+
         if (!resume) throw new NotFoundException("Resume not found")
+
+        return resume
+    }
+    async deleteResume(id: string) {
+        const resume = await this.findOne(id)
         await this.deleteFileFromS3(resume.awsFileKey as string)
         await this.prisma.resume.delete({
             where: {

@@ -5,7 +5,7 @@ import { ResumeService } from "./resume.service"
 import { FileInterceptor } from "@nestjs/platform-express"
 import { ResumeValidationPipe } from "./pipes/resume-validation.pipe"
 import { ApiParam } from "@nestjs/swagger"
-import { CreateResumeDto, GetUserResumesDto } from "./dtos"
+import { CreateResumeDto, DeleteResumeDto, GetUserResumesDto } from "./dtos"
 
 @Controller("resume")
 export class ResumeController {
@@ -31,7 +31,7 @@ export class ResumeController {
         name: "id",
         type: String,
     })
-    deleteResume(@Param("id") id: string) {
-        return this.resumeService.deleteResume(id)
+    deleteResume(@Param() data: DeleteResumeDto) {
+        return this.resumeService.deleteResume(data.id)
     }
 }
