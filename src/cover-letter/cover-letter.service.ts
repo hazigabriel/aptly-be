@@ -17,10 +17,6 @@ export class CoverLetterService {
     async generateCoverLetter(data: GenerateCoverLetterDto) {
         const resume = await this.resumeService.findOne(data.resumeId)
         const jobDescription = await this.jobDescriptionService.findOne(data.jobDescriptionId)
-
-        if (!resume.parsedData) {
-            throw new Error("Resume parsed data is missing or invalid")
-        }
         const coverLetterData = await this.llmService.generateCoverLetter(
             resume.parsedData,
             jobDescription.data,
@@ -37,7 +33,6 @@ export class CoverLetterService {
 
     async getAllCoverLetters(data: GetCoverLettersDto) {
         const sortDirection: "asc" | "desc" = data.sortDirection || "desc"
-
         const resumes = await this.prismaService.coverLetter.findMany({
             where: {
                 jobDescriptionId: data.jobDescriptionId,
@@ -59,6 +54,7 @@ export class CoverLetterService {
                 id,
             },
         })
+
         return {
             response: "Successfully deleted cover letter",
             statusCode: HttpStatus.OK,

@@ -45,7 +45,7 @@ export class LlmService {
         const responseContent = response.choices[0].message.content
 
         if (!responseContent) {
-            throw new InternalServerErrorException("Failed to retrieve response from OpenAI. ")
+            throw new InternalServerErrorException("Failed to retrieve response from OpenAI.")
         }
 
         return responseContent
