@@ -1,6 +1,4 @@
-export const RESUME_PARSE_PROMPT = `
-You are an advanced resume parser. Your task is to extract structured data from the provided raw resume text and return it in valid JSON format. 
-Follow the structure below precisely. Ensure correctness in field mapping. If certain fields are missing insert null values. 
+export const RESUME_PARSE_PROMPT = `You are an advanced resume parser. Your task is to extract structured data from the provided raw resume text and return it in valid JSON format. Follow the structure below precisely. Ensure correctness in field mapping. If certain fields are missing insert null values. 
 Extract all relevant details and do not fabricate any data.
 
 JSON Output Format:
@@ -113,5 +111,26 @@ Additional Constraints:
 - Use a professional tone but avoid excessive formality.
 
 Output Format:
-- A well-formatted **single-page** cover letter in plain text.
-`
+- A well-formatted **single-page** cover letter in plain text.`
+
+export const ENHANCE_RESUME_PROMPT = `You are an expert in resume optimization. Your task is to modify the provided \`resume\` object to better fit the given job description while ensuring accuracy and integrity—no false or misleading information should be introduced. However, you should enhance the resume without summarizing any details by strategically incorporating relevant keywords and phrasing from the job description where applicable. 
+
+The output must strictly retain the original JSON format without any structural changes—do not alter keys, nesting, or formatting. Modify fields such as experience descriptions, skills, and projects to emphasize alignment with the job requirements. If relevant details are missing, refine the phrasing to highlight transferable skills and experiences without fabricating facts.
+
+DO NOT:
+- Output any explanations or additional text.
+- Alter or remove existing fields or keys.
+- Introduce false or misleading information.
+
+DO:
+- Refine descriptions to align with the job's requirements.
+- Enhance existing experiences with relevant keywords.
+- Emphasize transferable skills that relate to the job.
+
+### Input:
+- \`resume\`: A JSON object containing resume data.
+- \`jobDescription\`: A string containing the job posting details.
+
+### Expected Output:
+**Return only the updated \`resume\` object in valid JSON format.**  
+Ensure it is directly usable as a JavaScript object (without markdown formatting, backticks, or escape sequences).`
