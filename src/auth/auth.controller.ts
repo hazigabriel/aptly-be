@@ -1,32 +1,47 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from "@nestjs/common"
+import {
+    Controller,
+    Post,
+    Body,
+    HttpCode,
+    HttpStatus,
+    UseGuards,
+    Res,
+    Req,
+    UnauthorizedException,
+} from "@nestjs/common"
 import { AuthService } from "./auth.service"
 import { AuthDto } from "./dto"
-import { Tokens } from "./types"
-import { RefreshTokenGuard } from "./guards"
+import { AccessToken } from "./types"
+import { RefreshTokenGuard, RequestWithCookies } from "./guards"
 import { GetCurrentUser, GetCurrentUserId, Public } from "./decorators"
-import { ApiBody, ApiParam, ApiProperty } from "@nestjs/swagger"
-
+import { Response, Request } from "express"
 @Controller("auth")
 export class AuthController {
     constructor(private authService: AuthService) {}
 
     @Public()
     @Post("register")
-    register(@Body() dto: AuthDto): Promise<Tokens> {
-        return this.authService.register(dto)
+    register(
+        @Body() dto: AuthDto,
+        @Res({ passthrough: true }) res: Response,
+    ): Promise<AccessToken> {
+        return this.authService.register(dto, res)
     }
 
     @Public()
     @Post("login")
     @HttpCode(HttpStatus.OK)
-    login(@Body() dto: AuthDto): Promise<Tokens> {
-        return this.authService.login(dto)
+    login(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response): Promise<AccessToken> {
+        return this.authService.login(dto, res)
     }
 
     @Post("logout")
     @HttpCode(HttpStatus.OK)
-    logout(@GetCurrentUserId() userId: string) {
-        return this.authService.logout(userId)
+    logout(
+        @GetCurrentUserId() userId: string,
+        @Res({ passthrough: true }) res: Response,
+    ): Promise<Record<string, string>> {
+        return this.authService.logout(userId, res)
     }
 
     @Public()
@@ -35,9 +50,10 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     refreshToken(
         @GetCurrentUserId() userId: string,
-        @GetCurrentUser("refreshToken") refreshToken: string,
+        @Req() req: RequestWithCookies,
+        @Res({ passthrough: true }) res: Response,
     ) {
-        return this.authService.refreshToken(userId, refreshToken)
+        return this.authService.refreshToken(userId, req, res)
     }
 
     @Public()
