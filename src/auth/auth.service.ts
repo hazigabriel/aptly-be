@@ -11,6 +11,8 @@ import { JwtService } from "@nestjs/jwt"
 import * as nodemailer from "nodemailer"
 import { ConfigService } from "@nestjs/config"
 import { expiredVerificationEmail, verificationEmail } from "src/emailTemplates"
+import { Response } from "express"
+import { RequestWithCookies } from "./guards"
 
 @Injectable()
 export class AuthService {
@@ -30,7 +32,7 @@ export class AuthService {
         })
     }
 
-    async register(dto: AuthDto) {
+    async register(dto: AuthDto, res: Response) {
         const hash = await this.hashData(dto.password)
         const emailToken = await this.getEmailVerificationToken(dto.email)
         const userExists = await this.prisma.user.findUnique({
@@ -38,6 +40,7 @@ export class AuthService {
                 email: dto.email,
             },
         })
+
         if (userExists) throw new ForbiddenException("Email was already used")
 
         const newUser = await this.prisma.user.create({
@@ -49,28 +52,46 @@ export class AuthService {
         })
 
         const tokens = await this.getTokens(newUser.id, newUser.email)
+
         await this.sendVerificationEmail(dto.email, emailToken)
         await this.updateRtHash(newUser.id, tokens.refresh_token)
-        return tokens
+
+        res.cookie("refresh_token", tokens.refresh_token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "strict",
+        })
+
+        return { access_token: tokens.access_token }
     }
 
-    async login(dto: AuthDto) {
+    async login(dto: AuthDto, res: Response) {
         const user = await this.prisma.user.findUnique({
             where: {
                 email: dto.email,
             },
         })
+
         if (!user) throw new NotFoundException("User not found")
 
         const isPasswordMatching = await bcrypt.compare(dto.password, user.password)
 
         if (!isPasswordMatching) throw new ForbiddenException("Password is incorrect")
+
         const tokens = await this.getTokens(user.id, user.email)
+
         await this.updateRtHash(user.id, tokens.refresh_token)
-        return tokens
+
+        res.cookie("refresh_token", tokens.refresh_token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "strict",
+        })
+
+        return { access_token: tokens.access_token }
     }
 
-    async logout(userId: string) {
+    async logout(userId: string, res: Response) {
         await this.prisma.user.updateMany({
             where: {
                 id: userId,
@@ -82,9 +103,22 @@ export class AuthService {
                 hashedRefreshToken: null,
             },
         })
+        res.clearCookie("refresh_token", {
+            httpOnly: true,
+            secure: true,
+            sameSite: "strict",
+        })
+
+        return { message: "Logged out successfully" }
     }
 
-    async refreshToken(userId: string, refreshToken: string) {
+    async refreshToken(userId: string, req: RequestWithCookies, res: Response) {
+        const refreshToken = req.cookies["refresh_token"]
+
+        if (!refreshToken) {
+            throw new UnauthorizedException("Refresh token not found in cookies")
+        }
+
         const user = await this.prisma.user.findUnique({
             where: {
                 id: userId,
@@ -100,7 +134,13 @@ export class AuthService {
         const tokens = await this.getTokens(user.id, user.email)
         await this.updateRtHash(user.id, tokens.refresh_token)
 
-        return tokens
+        res.cookie("refresh_token", tokens.refresh_token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "strict",
+        })
+
+        return { access_token: tokens.access_token }
     }
 
     async resendEmailToken(email: string) {

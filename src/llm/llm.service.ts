@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException } from "@nestjs/common"
 import { ConfigService } from "@nestjs/config"
 import OpenAI from "openai"
 
-import { COVER_LETTER_PROMPT, RESUME_PARSE_PROMPT } from "src/constants"
+import { COVER_LETTER_PROMPT, RESUME_PARSE_PROMPT, ENHANCE_RESUME_PROMPT } from "src/constants"
 @Injectable()
 export class LlmService {
     private openAI: OpenAI
@@ -26,6 +26,15 @@ export class LlmService {
         const response = await this.getOpenAIResponse(COVER_LETTER_PROMPT, rawData)
 
         return response
+    }
+
+    async generateEnhancedResume(resumeData, jobDescriptionData): Promise<string> {
+        const rawData = JSON.stringify({
+            resume: resumeData,
+            jobDescription: jobDescriptionData,
+        })
+        const response = await this.getOpenAIResponse(ENHANCE_RESUME_PROMPT, rawData)
+        return JSON.parse(response)
     }
 
     async getOpenAIResponse(prompt: string, data: string): Promise<string> {

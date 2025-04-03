@@ -10,7 +10,8 @@ import { AccessTokenGuard } from "./auth/guards"
 import { ResumeModule } from "./resume/resume.module"
 import { JobDescriptionModule } from "./job-description/job-description.module"
 import { LlmService } from "./llm/llm.service"
-import { CoverLetterModule } from './cover-letter/cover-letter.module';
+import { CoverLetterModule } from "./cover-letter/cover-letter.module"
+import { EnhancedResumeModule } from "./enhanced-resume/enhanced-resume.module"
 import envConfiguration from "./config/envConfiguration"
 
 @Module({
@@ -18,7 +19,7 @@ import envConfiguration from "./config/envConfiguration"
         UsersModule,
         ConfigModule.forRoot({
             isGlobal: true,
-            envFilePath: `.env.${process.env.NODE_ENV}`,
+            envFilePath: process.env.NODE_ENV === "test" ? ".env.test" : ".env",
             load: [envConfiguration],
         }),
         AuthModule,
@@ -26,6 +27,7 @@ import envConfiguration from "./config/envConfiguration"
         ResumeModule,
         JobDescriptionModule,
         CoverLetterModule,
+        EnhancedResumeModule,
     ],
     controllers: [AppController],
     providers: [
