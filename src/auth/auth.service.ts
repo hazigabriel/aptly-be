@@ -261,7 +261,7 @@ export class AuthService {
             } else if (error.name === "JsonWebTokenError") {
                 throw new UnauthorizedException("Invalid or malformed token.")
             } else {
-                throw new UnauthorizedException("An error occurred during password reset.")
+                throw new UnauthorizedException(error.response.message)
             }
         }
     }
