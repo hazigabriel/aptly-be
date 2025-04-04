@@ -23,4 +23,17 @@ const expiredVerificationEmail = (link: string) => ({
     `,
 })
 
-export { verificationEmail, expiredVerificationEmail }
+const forgotPasswordEmail = (link: string) => ({
+    subject: "Reset Your Password - Aptly",
+    body: `
+    Hey there!<br><br>
+    We received a request to reset your password. If this was you, click the link below to set a new password:<br><br>
+    <a href="${link}">Reset your password</a><br><br>
+    This link will expire in 1 hour for security reasons.<br><br>
+    If you didn't request a password reset, you can safely ignore this email.<br><br>
+    Stay secure,<br>
+    The Aptly Team
+  `,
+})
+
+export { verificationEmail, expiredVerificationEmail, forgotPasswordEmail }
