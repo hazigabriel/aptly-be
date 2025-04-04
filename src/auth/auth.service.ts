@@ -5,12 +5,16 @@ import {
     UnauthorizedException,
 } from "@nestjs/common"
 import { PrismaService } from "src/prisma/prisma.service"
-import { AuthDto } from "./dto"
+import { LoginDto, RegisterDto } from "./dto"
 import * as bcrypt from "bcrypt"
 import { JwtService } from "@nestjs/jwt"
 import * as nodemailer from "nodemailer"
 import { ConfigService } from "@nestjs/config"
-import { expiredVerificationEmail, verificationEmail } from "src/emailTemplates"
+import {
+    expiredVerificationEmail,
+    forgotPasswordEmail,
+    verificationEmail,
+} from "src/emailTemplates"
 import { Response } from "express"
 import { RequestWithCookies } from "./guards"
 
@@ -32,7 +36,7 @@ export class AuthService {
         })
     }
 
-    async register(dto: AuthDto, res: Response) {
+    async register(dto: RegisterDto, res: Response) {
         const hash = await this.hashData(dto.password)
         const emailToken = await this.getEmailVerificationToken(dto.email)
         const userExists = await this.prisma.user.findUnique({
@@ -45,6 +49,8 @@ export class AuthService {
 
         const newUser = await this.prisma.user.create({
             data: {
+                firstName: dto.firstName,
+                lastName: dto.lastName,
                 email: dto.email,
                 password: hash,
                 emailVerificationToken: emailToken,
@@ -53,7 +59,7 @@ export class AuthService {
 
         const tokens = await this.getTokens(newUser.id, newUser.email)
 
-        await this.sendVerificationEmail(dto.email, emailToken)
+        await this.sendVerificationEmail(dto.email, emailToken, "verification")
         await this.updateRtHash(newUser.id, tokens.refresh_token)
 
         res.cookie("refresh_token", tokens.refresh_token, {
@@ -65,7 +71,7 @@ export class AuthService {
         return { access_token: tokens.access_token }
     }
 
-    async login(dto: AuthDto, res: Response) {
+    async login(dto: LoginDto, res: Response) {
         const user = await this.prisma.user.findUnique({
             where: {
                 email: dto.email,
@@ -154,7 +160,7 @@ export class AuthService {
                 emailVerificationToken: emailToken,
             },
         })
-        await this.sendVerificationEmail(email, emailToken, true)
+        await this.sendVerificationEmail(email, emailToken, "expiredVerification")
 
         return { message: "Token resent successfully", email }
     }
@@ -188,6 +194,74 @@ export class AuthService {
                 throw new UnauthorizedException("Invalid token.")
             } else {
                 throw new UnauthorizedException("An error occurred while processing the token.")
+            }
+        }
+    }
+
+    async forgotPassword(email: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { email },
+        })
+
+        if (!user) throw new NotFoundException("User not found")
+        const resetToken = await this.jwtService.signAsync(
+            {
+                email,
+            },
+            {
+                secret: this.configService.get<string>("secret.resetPassword"),
+                expiresIn: 60 * 60, // 60 mins
+            },
+        )
+
+        await this.prisma.user.update({
+            where: {
+                email,
+            },
+            data: {
+                passwordResetToken: resetToken,
+            },
+        })
+
+        await this.sendVerificationEmail(email, resetToken, "forgotPassword")
+
+        return { message: "Password reset link sent to your email." }
+    }
+
+    async resetPassword(token: string, newPassword: string) {
+        try {
+            const secret = this.configService.get<string>("secret.resetPassword")
+            const payload = this.jwtService.verify<{ email: string }>(token, { secret })
+            const user = await this.prisma.user.findUnique({
+                where: {
+                    email: payload.email,
+                },
+            })
+
+            if (!user || user.passwordResetToken !== token) {
+                throw new ForbiddenException("Invalid or expired token.")
+            }
+
+            const newHashedPassword = await this.hashData(newPassword)
+
+            await this.prisma.user.update({
+                where: {
+                    email: payload.email,
+                },
+                data: {
+                    password: newHashedPassword,
+                    passwordResetToken: null,
+                },
+            })
+
+            return { message: "Password reset successfully" }
+        } catch (error) {
+            if (error.name === "TokenExpiredError") {
+                throw new UnauthorizedException("The password reset link has expired.")
+            } else if (error.name === "JsonWebTokenError") {
+                throw new UnauthorizedException("Invalid or malformed token.")
+            } else {
+                throw new UnauthorizedException("An error occurred during password reset.")
             }
         }
     }
@@ -267,9 +341,23 @@ export class AuthService {
 
         return emailToken
     }
-    async sendVerificationEmail(email: string, token: string, resend: boolean = false) {
-        const link = `${this.configService.get<string>("app.frontEndUrl")}/confirm-email/${token}`
-        const emailTemplate = resend ? expiredVerificationEmail(link) : verificationEmail(link)
+    async sendVerificationEmail(
+        email: string,
+        token: string,
+        type: "verification" | "expiredVerification" | "forgotPassword",
+    ) {
+        const link =
+            type === "forgotPassword"
+                ? `${this.configService.get<string>("app.frontEndUrl")}/reset-password/${token}`
+                : `${this.configService.get<string>("app.frontEndUrl")}/confirm-email/${token}`
+
+        const emailTemplates = {
+            verification: verificationEmail,
+            expiredVerification: expiredVerificationEmail,
+            forgotPassword: forgotPasswordEmail,
+        }
+
+        const emailTemplate = emailTemplates[type](link)
 
         await this.transporter.sendMail({
             from: this.configService.get<string>("email.user"),

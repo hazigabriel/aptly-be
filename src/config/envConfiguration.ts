@@ -22,6 +22,7 @@ export default () => ({
         access: process.env.AT_SECRET,
         refresh: process.env.RT_SECRET,
         email: process.env.ET_SECRET,
+        resetPassword: process.env.RP_SECRET,
     },
     llm: {
         openAIApiKey: process.env.OPENAI_API_KEY,
