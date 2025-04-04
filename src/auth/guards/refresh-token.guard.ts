@@ -17,7 +17,7 @@ export class RefreshTokenGuard extends AuthGuard("jwt-refresh") {
         if (!refreshToken) {
             throw new UnauthorizedException("Refresh token not found in cookies")
         }
-        
+
         request.headers.authorization = `Bearer ${refreshToken}`
 
         return request

@@ -1,20 +1,11 @@
-import {
-    Controller,
-    Post,
-    Body,
-    HttpCode,
-    HttpStatus,
-    UseGuards,
-    Res,
-    Req,
-    UnauthorizedException,
-} from "@nestjs/common"
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Res, Req } from "@nestjs/common"
 import { AuthService } from "./auth.service"
-import { AuthDto } from "./dto"
+import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from "./dto"
 import { AccessToken } from "./types"
 import { RefreshTokenGuard, RequestWithCookies } from "./guards"
-import { GetCurrentUser, GetCurrentUserId, Public } from "./decorators"
-import { Response, Request } from "express"
+import { GetCurrentUserId, Public } from "./decorators"
+import { Response } from "express"
+
 @Controller("auth")
 export class AuthController {
     constructor(private authService: AuthService) {}
@@ -22,7 +13,7 @@ export class AuthController {
     @Public()
     @Post("register")
     register(
-        @Body() dto: AuthDto,
+        @Body() dto: RegisterDto,
         @Res({ passthrough: true }) res: Response,
     ): Promise<AccessToken> {
         return this.authService.register(dto, res)
@@ -31,7 +22,7 @@ export class AuthController {
     @Public()
     @Post("login")
     @HttpCode(HttpStatus.OK)
-    login(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response): Promise<AccessToken> {
+    login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response): Promise<AccessToken> {
         return this.authService.login(dto, res)
     }
 
@@ -68,5 +59,19 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     confirmEmail(@Body("token") token: string) {
         return this.authService.confirmEmail(token)
+    }
+
+    @Public()
+    @Post("forgot-password")
+    @HttpCode(HttpStatus.OK)
+    forgotPassword(@Body() dto: ForgotPasswordDto) {
+        return this.authService.forgotPassword(dto.email)
+    }
+
+    @Public()
+    @Post("reset-password")
+    @HttpCode(HttpStatus.OK)
+    async resetPassword(@Body() dto: ResetPasswordDto) {
+        return this.authService.resetPassword(dto.token, dto.newPassword)
     }
 }
