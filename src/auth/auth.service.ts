@@ -348,7 +348,7 @@ export class AuthService {
     ) {
         const link =
             type === "forgotPassword"
-                ? `${this.configService.get<string>("app.frontEndUrl")}/reset-password/${token}`
+                ? `${this.configService.get<string>("app.frontEndUrl")}/forgot-password/reset-password?token=${token}`
                 : `${this.configService.get<string>("app.frontEndUrl")}/confirm-email/${token}`
 
         const emailTemplates = {
