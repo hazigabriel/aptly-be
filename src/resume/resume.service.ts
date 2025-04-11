@@ -62,6 +62,24 @@ export class ResumeService {
         }
     }
 
+    async parseResume(file: Express.Multer.File) {
+        let rawText: string
+        const fileExtension = path.extname(file.originalname).toLocaleLowerCase().replace(".", "")
+
+        if (fileExtension === "pdf") {
+            rawText = await this.extractPdfText(file)
+        } else {
+            rawText = await this.extractWordText(file)
+        }
+
+        const parsedResume = await this.llmService.parseRawData(rawText)
+
+        return {
+            data: parsedResume,
+            statusCode: HttpStatus.OK,
+        }
+    }
+
     async getUserResumes(userId: string, queryData: GetUserResumesDto) {
         const sortDirection: "asc" | "desc" = queryData.sortDirection || "desc"
         const resumes = await this.prisma.resume.findMany({

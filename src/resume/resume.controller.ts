@@ -21,6 +21,12 @@ export class ResumeController {
         return this.resumeService.createResumeWithFile(userId, file, createResumeDto.resumeName)
     }
 
+    @Post("parse-resume")
+    @UseInterceptors(FileInterceptor("file"))
+    parseResume(@UploadedFile(new ResumeValidationPipe()) file: Express.Multer.File) {
+        return this.resumeService.parseResume(file)
+    }
+
     @Get("my-resumes")
     getUserResumes(@GetCurrentUserId() userId: string, @Query() queryData: GetUserResumesDto) {
         return this.resumeService.getUserResumes(userId, queryData)
