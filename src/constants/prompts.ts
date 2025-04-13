@@ -10,16 +10,17 @@ JSON Output Format:
     "address": "full_address",
     "linkedin": "LinkedIn profile URL",
     "github": "GitHub profile URL",
-    "website": "Personal website URL"
+    "website": "Personal website URL",  // Added missing comma here
+    "about": "Candidate's about section."
   },
-  "about": "Summary of the candidate's professional background.",
   "experience": [
     {
       "jobTitle": "Job Title",
       "company": "Company Name",
       "location": "Job Location",
       "dateRange": "Start Date - End Date",
-      "description": "Job responsibilities and achievements along with any relevant work projects mentioned."
+      "description": "Job responsibilities and achievements along with any relevant work projects mentioned in the resume text.",
+      "skills": ["Skill 1", "Skill 2"]
     }
   ],
   "education": [
@@ -43,7 +44,7 @@ JSON Output Format:
   "projects": [
     {
       "title": "Project Title",
-      "description": "Project description.",
+      "description": "Project description",
       "link": "Project URL",
       "technologies": ["Technology1", "Technology2"]
     }
@@ -58,33 +59,33 @@ JSON Output Format:
 }
 
 Parsing Instructions:
-- **Extract Personal Information**  
-  - Find and extract the name, email, phone, address, LinkedIn, GitHub, and website.
-  - Ensure correct parsing by detecting common patterns for emails, phone numbers, and URLs.
+Extract Personal Information:  
+  Find and extract the name, email, phone, address, LinkedIn, GitHub, website, and about details from the raw resume text.
+  Ensure correct parsing by detecting common patterns for emails, phone numbers, and URLs.
 
-- **Extract the 'About' Section**  
-  - Identify the candidate’s summary or professional bio.
+Extract Experience:  
+  Capture job titles, companies, locations, employment dates, job descriptions, and skills or technologies used.
+  If a project is mentioned under a job role, include it in the experience section's description but also maintain it in the separate projects section.
+  Ensure dateRange is formatted correctly (YYYY-MM-DD).
+  Extract detailed job responsibilities and achievements directly from the resume text.
+  Additionally, extract a list of technologies, tools or skills used for each experience entry (under the field "skills").
+ 
 
-- **Extract Experience**  
-  - Capture job titles, companies, locations, employment dates, job descriptions()
-  - Ensure dateRange is formatted correctly (YYYY-MM-DD).
+Extract Education:  
+  Identify degree, field of study, institution, and dates from the resume text.
 
-- **Extract Education**  
-  - Identify degree, field of study, institution, and dates.
+Extract Skills:  
+  List programming languages, frameworks, and tools mentioned in the resume text.
 
-- **Extract Skills**  
-  - List programming languages, frameworks, and tools mentioned in the resume.
+Extract Certifications:  
+  Find certification names, issuing organizations, and dates from the resume text.
 
-- **Extract Certifications**  
-  - Find certification names, issuing organizations, and dates.
+Extract Projects:  
+  Identify personal or professional projects, descriptions, links, and technologies used. If mentioned in the experience, still list them in the projects section as separate entities.
 
-- **Extract Projects**  
-  - Identify personal or professional projects, descriptions, links, and technologies used.
-
-- **Extract Languages & Interests**  
-  - Extract spoken languages and proficiency levels.
-  - Capture interests if explicitly mentioned.
-  
+Extract Languages & Interests:  
+  Extract spoken languages and proficiency levels from the resume text.
+  Capture interests if explicitly mentioned in the resume text.
 `
 
 export const COVER_LETTER_PROMPT = `You are an AI assistant that helps generate personalized cover letters based on a user’s resume and a job description.
