@@ -15,4 +15,10 @@ export class ResumeResponseDto {
 
     @Expose()
     fileUrl: string
+
+    @Expose()
+    parsedData: object
+
+    @Expose()
+    ResumeFile: object
 }

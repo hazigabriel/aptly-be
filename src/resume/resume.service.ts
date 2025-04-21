@@ -33,31 +33,55 @@ export class ResumeService {
         private llmService: LlmService,
     ) {}
 
-    async createResumeWithFile(userId: string, file: Express.Multer.File, resumeName: string) {
-        const fileKey = `resumes/${new Date().getTime()}|${file.originalname}`
-        const fileExtension = path.extname(file.originalname).toLocaleLowerCase().replace(".", "")
+    async createResume(
+        userId: string,
+        parsedData: object,
+        resumeName: string,
+        file?: Express.Multer.File,
+    ) {
+        let fileUrl: string | null = null
+        const newResume = await this.prisma.resume.create({
+            data: {
+                resumeName,
+                userId,
+                parsedData,
+            },
+        })
+
+        if (file) {
+            const fileKey = `resumes/${Date.now()}|${file.originalname}`
+            await this.uploadFileToS3(fileKey, file)
+            fileUrl = await this.generateFilePresignedUrl(fileKey)
+
+            await this.prisma.resumeFile.create({
+                data: {
+                    resumeId: newResume.id,
+                    awsFileKey: fileKey,
+                    originalResumeName: file.originalname,
+                },
+            })
+        }
+
+        return {
+            response: { ...newResume, fileUrl: fileUrl },
+            statusCode: HttpStatus.OK,
+        }
+    }
+
+    async parseResume(file: Express.Multer.File) {
         let rawText: string
+        const fileExtension = path.extname(file.originalname).toLocaleLowerCase().replace(".", "")
+
         if (fileExtension === "pdf") {
             rawText = await this.extractPdfText(file)
         } else {
             rawText = await this.extractWordText(file)
         }
 
-        await this.uploadFileToS3(fileKey, file)
-        const presignedUrl = await this.generateFilePresignedUrl(fileKey)
-
-        const newResume = await this.prisma.resume.create({
-            data: {
-                userId: userId,
-                resumeName,
-                awsFileKey: fileKey,
-                originalResumeName: file.originalname,
-                parsedData: await this.llmService.parseRawData(rawText),
-            },
-        })
+        const parsedResume = await this.llmService.parseRawData(rawText)
 
         return {
-            response: { ...newResume, fileUrl: presignedUrl },
+            data: parsedResume,
             statusCode: HttpStatus.OK,
         }
     }
@@ -68,21 +92,24 @@ export class ResumeService {
             where: {
                 userId,
             },
+            include: {
+                ResumeFile: true,
+            },
             orderBy: {
                 createdAt: sortDirection,
             },
         })
         const transformedResumes = await Promise.all(
             resumes.map(async resume => {
-                const fileUrl = resume.awsFileKey
-                    ? await this.generateFilePresignedUrl(resume.awsFileKey)
+                const fileUrl = resume.ResumeFile?.awsFileKey
+                    ? await this.generateFilePresignedUrl(resume.ResumeFile?.awsFileKey)
                     : null
 
                 return {
                     ...plainToInstance(ResumeResponseDto, resume, {
                         excludeExtraneousValues: true,
                     }),
-                    fileUrl: fileUrl,
+                    fileUrl,
                 }
             }),
         )
@@ -94,15 +121,27 @@ export class ResumeService {
             where: {
                 id,
             },
+            include: {
+                ResumeFile: true,
+            },
         })
-
         if (!resume) throw new NotFoundException("Resume not found")
 
         return resume
     }
     async deleteResume(id: string) {
-        const resume = await this.findOne(id)
-        await this.deleteFileFromS3(resume.awsFileKey as string)
+        const resume = await this.prisma.resume.findUnique({
+            where: {
+                id,
+            },
+            include: {
+                ResumeFile: true,
+            },
+        })
+
+        if (resume?.ResumeFile) {
+            await this.deleteFileFromS3(resume.ResumeFile.awsFileKey as string)
+        }
         await this.prisma.resume.delete({
             where: {
                 id,

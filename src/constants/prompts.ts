@@ -10,16 +10,26 @@ JSON Output Format:
     "address": "full_address",
     "linkedin": "LinkedIn profile URL",
     "github": "GitHub profile URL",
-    "website": "Personal website URL"
+    "website": "Personal website URL",
+    "about": "Candidate's about section."
   },
-  "about": "Summary of the candidate's professional background.",
   "experience": [
     {
       "jobTitle": "Job Title",
       "company": "Company Name",
       "location": "Job Location",
       "dateRange": "Start Date - End Date",
-      "description": "Job responsibilities and achievements along with any relevant work projects mentioned."
+      "description": "Job responsibilities and achievements along with any relevant work projects mentioned in the resume text.",
+      "skills": ["Skill 1", "Skill 2"]
+    }
+  ],
+  "volunteering": [
+    {
+      "organization": "Organization Name",
+      "position": "Role/Title",
+      "location": "Location",
+      "dateRange": "Start Date - End Date",
+      "summary": "Brief overview of responsibilities or achievements"
     }
   ],
   "education": [
@@ -31,7 +41,12 @@ JSON Output Format:
       "dateRange": "Start Date - End Date"
     }
   ],
-  "skills": ["Skill1", "Skill2", "Skill3"],
+  "skills": [
+    {
+      "name": "Skill Category Name",
+      "keywords": ["Skill1", "Skill2", "Skill3"]
+    }
+  ],
   "certifications": [
     {
       "name": "Certification Name",
@@ -43,9 +58,9 @@ JSON Output Format:
   "projects": [
     {
       "title": "Project Title",
-      "description": "Project description.",
+      "description": "Project description",
       "link": "Project URL",
-      "technologies": ["Technology1", "Technology2"]
+      "skills": ["Skill 1", "Skill 2"]
     }
   ],
   "languages": [
@@ -58,33 +73,54 @@ JSON Output Format:
 }
 
 Parsing Instructions:
-- **Extract Personal Information**  
-  - Find and extract the name, email, phone, address, LinkedIn, GitHub, and website.
-  - Ensure correct parsing by detecting common patterns for emails, phone numbers, and URLs.
 
-- **Extract the 'About' Section**  
-  - Identify the candidate’s summary or professional bio.
+Extract Personal Information:  
+  Find and extract the name, email, phone, address, LinkedIn, GitHub, website, and about details from the raw resume text.
+  Ensure correct parsing by detecting common patterns for emails, phone numbers, and URLs.
+  If any of these values are missing, assign them a null value.
 
-- **Extract Experience**  
-  - Capture job titles, companies, locations, employment dates, job descriptions()
-  - Ensure dateRange is formatted correctly (YYYY-MM-DD).
+Extract Experience:  
+  Capture job titles, companies, locations, employment dates, job descriptions, and skills or technologies used.
+  If a project is mentioned under a job role, include it in the experience section's description but also maintain it in the separate projects section.
+  Ensure dateRange is formatted correctly (YYYY-MM-DD).
+  Extract detailed job responsibilities and achievements directly from the resume text.
+  Additionally, extract a list of technologies, tools or skills used for each experience entry (under the field "skills").
+  If no experiences are found, return an empty array. For missing fields within a job entry, use null values.
 
-- **Extract Education**  
-  - Identify degree, field of study, institution, and dates.
+Extract Volunteering:
+  If the resume contains any voluntary roles, include them under the \`volunteering\` array. For each item, extract the organization, position, location, dateRange, and a brief summary.
+  If no volunteering information is found, return an empty array.
+  If any nested value is missing within a volunteering entry, assign it null.
 
-- **Extract Skills**  
-  - List programming languages, frameworks, and tools mentioned in the resume.
+Extract Education:  
+  Identify degree, field of study, institution, location, and dates from the resume text.
+  If no education data is found, return an empty array. Missing nested fields should be null.
 
-- **Extract Certifications**  
-  - Find certification names, issuing organizations, and dates.
+Extract Skills:  
+  Categorize skills into groups like "Frontend Development", "Backend", "Tools", etc.
+  Each group must have a "name" and a "keywords" array listing relevant tools, languages, or technologies.
+  Example:
+  "skills": [
+    {
+      "name": "Frontend Development",
+      "keywords": ["React", "Next.js", "JavaScript"]
+    }
+  ]
+  If no skills are found, return an empty array.
 
-- **Extract Projects**  
-  - Identify personal or professional projects, descriptions, links, and technologies used.
+Extract Certifications:  
+  Find certification names, issuing organizations, and dates from the resume text.
+  Return an empty array if none are found. Missing nested fields should be set to null.
 
-- **Extract Languages & Interests**  
-  - Extract spoken languages and proficiency levels.
-  - Capture interests if explicitly mentioned.
-  
+Extract Projects:  
+  Identify personal or professional projects, their descriptions, links, and skills or technologies used.
+  If mentioned under experience, still list them separately in the projects section.
+  Return an empty array if none are found. Use null for missing nested fields.
+
+Extract Languages & Interests:  
+  Extract spoken languages and their proficiency levels.
+  Also capture interests if explicitly mentioned.
+  Use empty arrays when either section is not available.
 `
 
 export const COVER_LETTER_PROMPT = `You are an AI assistant that helps generate personalized cover letters based on a user’s resume and a job description.
