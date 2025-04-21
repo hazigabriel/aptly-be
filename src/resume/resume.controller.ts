@@ -11,14 +11,19 @@ import { CreateResumeDto, DeleteResumeDto, GetUserResumesDto } from "./dtos"
 export class ResumeController {
     constructor(private resumeService: ResumeService) {}
 
-    @Post("upload-file")
+    @Post("add-resume")
     @UseInterceptors(FileInterceptor("file"))
     createResumeWithFile(
         @UploadedFile(new ResumeValidationPipe()) file: Express.Multer.File,
         @GetCurrentUserId() userId: string,
         @Body() createResumeDto: CreateResumeDto,
     ) {
-        return this.resumeService.createResumeWithFile(userId, file, createResumeDto.resumeName)
+        return this.resumeService.createResume(
+            userId,
+            createResumeDto.parsedData,
+            createResumeDto.resumeName,
+            file,
+        )
     }
 
     @Post("parse-resume")

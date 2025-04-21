@@ -27,25 +27,40 @@ model User {
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
-  resumes Resume[]
+  resumes    Resume[]
+  ResumeFile ResumeFile[]
 
   @@map("users")
 }
 
 model Resume {
-  id                 String   @id @default(uuid())
-  userId             String
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  awsFileKey         String?
-  resumeName         String
-  originalResumeName String
-  parsedData         Json?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parsedData Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  resumeName String
 
   jobDescriptions JobDescription[]
+  ResumeFile      ResumeFile?
 
   @@map("resumes")
+}
+
+model ResumeFile {
+  id                 String           @id @default(uuid())
+  resume             Resume           @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resumeId           String           @unique
+  awsFileKey         String?
+  originalResumeName String
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  User               User?            @relation(fields: [userId], references: [id])
+  userId             String?
+  JobDescription     JobDescription[]
+
+  @@map("resume_files")
 }
 
 model JobDescription {
@@ -57,6 +72,8 @@ model JobDescription {
   updatedAt      DateTime         @updatedAt
   EnhancedResume EnhancedResume[]
   CoverLetter    CoverLetter[]
+  ResumeFile     ResumeFile?      @relation(fields: [resumeFileId], references: [id])
+  resumeFileId   String?
 
   @@map("job_descriptions")
 }

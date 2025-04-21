@@ -10,7 +10,7 @@ export class ResumeValidationPipe implements PipeTransform {
 
     transform(value: Express.Multer.File) {
         if (!value) {
-            throw new BadRequestException("No file provided")
+            return undefined
         }
         const fileExtenstion = path.extname(value.originalname).toLocaleLowerCase().replace(".", "")
         if (!this.allowedExtensions.includes(fileExtenstion)) {
